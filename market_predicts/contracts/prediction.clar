@@ -279,3 +279,110 @@
         )
     )
 )
+
+;; Read-only functions
+
+;; Get market information
+(define-read-only (get-market (market-id uint))
+    (map-get? markets { market-id: market-id })
+)
+
+;; Get bet information
+(define-read-only (get-bet
+        (market-id uint)
+        (bettor principal)
+    )
+    (map-get? bets {
+        market-id: market-id,
+        bettor: bettor,
+    })
+)
+
+;; Get outcome total for a specific outcome in a market
+(define-read-only (get-outcome-total
+        (market-id uint)
+        (outcome uint)
+    )
+    (default-to u0
+        (get total
+            (map-get? outcome-totals {
+                market-id: market-id,
+                outcome: outcome,
+            })
+        ))
+)
+
+;; Get current market ID counter
+(define-read-only (get-next-market-id)
+    (var-get next-market-id)
+)
+
+;; Calculate potential winnings for a bettor
+(define-read-only (calculate-potential-winnings
+        (market-id uint)
+        (bettor principal)
+    )
+    (match (map-get? markets { market-id: market-id })
+        market
+        (match (map-get? bets {
+            market-id: market-id,
+            bettor: bettor,
+        })
+            bet
+            (if (get resolved market)
+                (match (get winning-outcome market)
+                    winning-outcome (if (is-eq (get outcome bet) winning-outcome)
+                        (let (
+                                (total-pool (get total-pool market))
+                                (winning-pool (get-outcome-total market-id winning-outcome))
+                                (bet-amount (get amount bet))
+                            )
+                            (if (> winning-pool u0)
+                                (some (/ (* total-pool bet-amount) winning-pool))
+                                (some u0)
+                            )
+                        )
+                        (some u0)
+                    )
+                    (some u0)
+                )
+                none ;; Market not resolved yet
+            )
+            none ;; No bet found
+        )
+        none ;; Market not found
+    )
+)
+
+;; Check if market is active (not expired and not resolved)
+(define-read-only (is-market-active (market-id uint))
+    (match (map-get? markets { market-id: market-id })
+        market (let ((current-time (unwrap-panic (get-stacks-block-info? time (- stacks-block-height u1)))))
+            (and
+                (< current-time (get end-time market))
+                (not (get resolved market))
+            )
+        )
+        false
+    )
+)
+
+;; Get all bettors for a market
+(define-read-only (get-market-bettors (market-id uint))
+    (default-to (list)
+        (get bettors (map-get? market-bettors { market-id: market-id }))
+    )
+)
+
+;; Private functions
+
+;; Helper function to validate outcome index
+(define-private (is-valid-outcome
+        (market-id uint)
+        (outcome uint)
+    )
+    (match (map-get? markets { market-id: market-id })
+        market (< outcome (len (get outcomes market)))
+        false
+    )
+)
