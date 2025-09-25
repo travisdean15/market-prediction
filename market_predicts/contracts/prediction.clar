@@ -154,7 +154,7 @@
     )
     (let (
             (market-id (var-get next-market-id))
-            (current-time (unwrap-panic (get-stacks-block-info? time (- stacks-block-height u1))))
+            (current-time stacks-block-height)
         )
         (asserts! (> (len description) u0) ERR-INVALID-DESCRIPTION)
         (asserts! (<= (len description) MAX-DESCRIPTION-LENGTH)
@@ -239,7 +239,7 @@
                 (market (unwrap! (map-get? markets { market-id: market-id })
                     ERR-MARKET-NOT-FOUND
                 ))
-                (current-time (unwrap-panic (get-stacks-block-info? time (- stacks-block-height u1))))
+                (current-time stacks-block-height)
                 (existing-bet (map-get? bets {
                     market-id: market-id,
                     bettor: tx-sender,
@@ -352,7 +352,7 @@
                 (market (unwrap! (map-get? markets { market-id: market-id })
                     ERR-MARKET-NOT-FOUND
                 ))
-                (current-time (unwrap-panic (get-stacks-block-info? time (- stacks-block-height u1))))
+                (current-time stacks-block-height)
             )
             ;; Only contract owner or market creator can resolve
             (asserts!
@@ -766,7 +766,7 @@
 ;; Check if market is active (not expired and not resolved)
 (define-read-only (is-market-active (market-id uint))
     (match (map-get? markets { market-id: market-id })
-        market (let ((current-time (unwrap-panic (get-stacks-block-info? time (- stacks-block-height u1)))))
+        market (let ((current-time stacks-block-height))
             (and
                 (< current-time (get end-time market))
                 (not (get resolved market))
